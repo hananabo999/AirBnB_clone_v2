@@ -1,27 +1,49 @@
 #!/usr/bin/python3
-"""This module contains methods"""
-from fabric.api import put, run, env
-from os.path import exists
-env.hosts = ["54.160.72.119", "54.90.17.67"]
+# Fabfile to distribute an archive to a web server.
+import os.path
+from fabric.api import env
+from fabric.api import put
+from fabric.api import run
+
+env.hosts = ["34.229.161.131", "54.89.46.50"]
 
 
 def do_deploy(archive_path):
-    """Moethod that distributes an archive to web servers"""
-    if exists(archive_path) is False:
+    """Distributes an archive to a web server.
+
+    Args:
+        archive_path (str): The path of the archive to distribute.
+    Returns:
+        If the file doesn't exist at archive_path or an error occurs - False.
+        Otherwise - True.
+    """
+    if os.path.isfile(archive_path) is False:
         return False
-    try:
-        file_name = archive_path.split("/")[-1]
-        date_time = file_name.split(".")[0]
-        path = "/data/web_static/releases/"
-        put(archive_path, '/tmp/')
-        run('mkdir -p {}{}/'.format(path, date_time))
-        run('tar -xzf /tmp/{} -C {}{}'.format(file_name, path, date_time))
-        run('rm /tmp/{}'.format(file_name))
-        run('mv {0}{1}/web_static/* {0}{1}'.format(path, date_time))
-        run('rm -rf {}{}/web_static/'.format(path, date_time))
-        run('rm -rf /data/web_static/current')
-        run('ln -s {}{}/ /data/web_static/current'.format(path, date_time))
-        print("New version deployed!")
-        return True
-    except Exception:
+    file = archive_path.split("/")[-1]
+    name = file.split(".")[0]
+
+    if put(archive_path, "/tmp/{}".format(file)).failed is True:
         return False
+    if run("sudo rm -rf /data/web_static/releases/{}/".
+           format(name)).failed is True:
+        return False
+    if run("sudo mkdir -p /data/web_static/releases/{}/".
+           format(name)).failed is True:
+        return False
+    if run("sudo tar -xzf /tmp/{} -C /data/web_static/releases/{}/".
+           format(file, name)).failed is True:
+        return False
+    if run("sudo rm /tmp/{}".format(file)).failed is True:
+        return False
+    if run("sudo mv /data/web_static/releases/{}/web_static/* "
+           "/data/web_static/releases/{}/".format(name, name)).failed is True:
+        return False
+    if run("sudo rm -rf /data/web_static/releases/{}/web_static".
+           format(name)).failed is True:
+        return False
+    if run("sudo rm -rf /data/web_static/current").failed is True:
+        return False
+    if run("sudo ln -s /data/web_static/releases/{}/ /data/web_static/current".
+           format(name)).failed is True:
+        return False
+    return True
